@@ -136,6 +136,22 @@
           <div class="pt-3 border-t border-slate-100 flex justify-end"><button type="submit" class="px-6 py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-sm transition flex items-center gap-2"><i class="fa-solid fa-check"></i> <span id="grantSubmitBtnText">상벌점 등록하기 (선택된 0명)</span></button></div>
         </form>
       </div>
+      
+      <!-- 엑셀 일괄 부여 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 mt-6">
+        <div class="pb-4 border-b border-slate-100 mb-4">
+          <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-600"></i> 엑셀 파일로 상벌점 일괄 부여</h3>
+          <p class="text-xs text-slate-500 mt-1">엑셀(CSV) 파일을 업로드하여 여러 학생의 상벌점을 한 번에 입력할 수 있습니다. (헤더: 학년, 반, 번호, 이름, 구분, 기준번호, 부여교사)</p>
+        </div>
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <input type="file" id="grantCsvFileInput" accept=".csv, .xlsx, .xls" class="text-sm text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-slate-100 cursor-pointer border border-slate-200 rounded-xl w-full sm:w-auto p-1">
+          <button onclick="handleGrantCSVUpload()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-md transition whitespace-nowrap"><i class="fa-solid fa-upload"></i> 파일 업로드 및 적용</button>
+        </div>
+        <div class="mt-4 bg-amber-50 p-3 rounded-xl border border-amber-200 text-amber-800 text-xs">
+          * '구분' 열에는 "상점" 또는 "벌점"을 입력하고, '기준번호' 열에는 기준표의 번호를 입력해주세요.<br>
+          * '부여교사' 열은 선택사항이며, 입력하지 않을 경우 로그인된 선생님의 이름으로 일괄 부여됩니다.
+        </div>
+      </div>
     </section>
 
     <!-- TAB 2: 통계 -->
@@ -169,13 +185,53 @@
     <!-- TAB 3: 과벌점 -->
     <section id="tab-warning-content" class="tab-content space-y-6 hidden">
       <div class="bg-white rounded-2xl border shadow-xs p-6 space-y-6">
-        <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> 과벌점 지도 대상 학생 관리</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-          <button onclick="setWarningTier(1)" id="tierBtn1" class="tier-btn active p-3 rounded-xl border text-center bg-amber-50 border-amber-300"><div class="text-[11px] font-semibold text-amber-700">1단계 주의</div><div class="text-xs font-black mt-0.5">-11점 ~ -20점</div><div class="text-lg font-extrabold mt-1" id="tierCount1">0명</div></button>
-          <button onclick="setWarningTier(2)" id="tierBtn2" class="tier-btn p-3 rounded-xl border text-center bg-slate-50 border-slate-200"><div class="text-[11px] font-semibold text-orange-600">2단계 경고</div><div class="text-xs font-black mt-0.5">-21점 ~ -30점</div><div class="text-lg font-extrabold mt-1" id="tierCount2">0명</div></button>
-          <button onclick="setWarningTier(3)" id="tierBtn3" class="tier-btn p-3 rounded-xl border text-center bg-slate-50 border-slate-200"><div class="text-[11px] font-semibold text-rose-600">3단계 심각</div><div class="text-xs font-black mt-0.5">-31점 ~ -40점</div><div class="text-lg font-extrabold mt-1" id="tierCount3">0명</div></button>
-          <button onclick="setWarningTier(4)" id="tierBtn4" class="tier-btn p-3 rounded-xl border text-center bg-slate-50 border-slate-200"><div class="text-[11px] font-semibold text-purple-600">4단계 집중지도</div><div class="text-xs font-black mt-0.5">-41점 ~ -50점</div><div class="text-lg font-extrabold mt-1" id="tierCount4">0명</div></button>
-          <button onclick="setWarningTier(5)" id="tierBtn5" class="tier-btn p-3 rounded-xl border text-center bg-slate-50 border-slate-200"><div class="text-[11px] font-semibold text-red-700">5단계 회부</div><div class="text-xs font-black mt-0.5">-51점 이하</div><div class="text-lg font-extrabold mt-1" id="tierCount5">0명</div></button>
+        <div class="flex justify-between items-center flex-wrap gap-4">
+            <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> 과벌점 지도 대상 학생 관리</h2>
+            
+            <!-- 날짜 필터 UI 추가 -->
+            <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+              <span class="text-xs font-bold text-slate-600">조회 기간:</span>
+              <input type="date" id="warningStartDate" onchange="renderWarningView()" class="px-2 py-1 text-xs bg-white border rounded-lg focus:border-blue-600">
+              <span class="text-slate-400">~</span>
+              <input type="date" id="warningEndDate" onchange="renderWarningView()" class="px-2 py-1 text-xs bg-white border rounded-lg focus:border-blue-600">
+            </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
+          <button onclick="setWarningTier(1)" id="tierBtn1" class="tier-btn flex flex-col justify-between p-3 rounded-xl border text-center transition-all duration-200 bg-amber-50 border-amber-400 shadow-md ring-2 ring-amber-200">
+            <div class="text-[10.5px] font-bold text-amber-800 break-keep leading-snug">1단계: 담임교사 상담</div>
+            <div class="mt-1">
+              <div class="text-[10px] font-black text-slate-500">-11점 ~ -20점</div>
+              <div class="text-lg font-extrabold text-amber-900" id="tierCount1">0명</div>
+            </div>
+          </button>
+          <button onclick="setWarningTier(2)" id="tierBtn2" class="tier-btn flex flex-col justify-between p-3 rounded-xl border text-center transition-all duration-200 bg-slate-50 border-slate-200 hover:bg-slate-100 opacity-60 hover:opacity-100">
+            <div class="text-[10.5px] font-bold text-orange-600 break-keep leading-snug">2단계: 학년부장, 생활지도 담당, 담임교사 상담, 학부모 1차 상담(전화 or 내교)</div>
+            <div class="mt-1">
+              <div class="text-[10px] font-black text-slate-500">-21점 ~ -30점</div>
+              <div class="text-lg font-extrabold" id="tierCount2">0명</div>
+            </div>
+          </button>
+          <button onclick="setWarningTier(3)" id="tierBtn3" class="tier-btn flex flex-col justify-between p-3 rounded-xl border text-center transition-all duration-200 bg-slate-50 border-slate-200 hover:bg-slate-100 opacity-60 hover:opacity-100">
+            <div class="text-[10.5px] font-bold text-rose-600 break-keep leading-snug">3단계: 학생생활안전부 학생 상담, 담임교사 학생 상담, 학부모 2차 상담(내교)</div>
+            <div class="mt-1">
+              <div class="text-[10px] font-black text-slate-500">-31점 ~ -40점</div>
+              <div class="text-lg font-extrabold" id="tierCount3">0명</div>
+            </div>
+          </button>
+          <button onclick="setWarningTier(4)" id="tierBtn4" class="tier-btn flex flex-col justify-between p-3 rounded-xl border text-center transition-all duration-200 bg-slate-50 border-slate-200 hover:bg-slate-100 opacity-60 hover:opacity-100">
+            <div class="text-[10.5px] font-bold text-purple-600 break-keep leading-snug">4단계: 학생생활교육위원회 개최<br>(교내봉사)</div>
+            <div class="mt-1">
+              <div class="text-[10px] font-black text-slate-500">-41점 ~ -50점</div>
+              <div class="text-lg font-extrabold" id="tierCount4">0명</div>
+            </div>
+          </button>
+          <button onclick="setWarningTier(5)" id="tierBtn5" class="tier-btn flex flex-col justify-between p-3 rounded-xl border text-center transition-all duration-200 bg-slate-50 border-slate-200 hover:bg-slate-100 opacity-60 hover:opacity-100">
+            <div class="text-[10.5px] font-bold text-red-700 break-keep leading-snug">5단계: 학생생활교육위원회 개최<br>(사회봉사)</div>
+            <div class="mt-1">
+              <div class="text-[10px] font-black text-slate-500">-51점 이하</div>
+              <div class="text-lg font-extrabold" id="tierCount5">0명</div>
+            </div>
+          </button>
         </div>
         <div class="rounded-xl border overflow-hidden">
           <table class="w-full text-left text-xs text-slate-600"><thead class="bg-slate-50 font-bold border-b"><tr><th class="py-3 px-4">학년-반-번호</th><th class="py-3 px-4">이름</th><th class="py-3 px-4 text-center">벌점</th><th class="py-3 px-4 text-center">상점</th><th class="py-3 px-4 text-center">누계</th><th class="py-3 px-4 text-center">상세</th></tr></thead><tbody id="warningTableBody" class="divide-y divide-slate-100"></tbody></table>
@@ -191,15 +247,15 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-100 gap-3">
           <div>
             <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-users text-slate-700"></i> 학생 목록 <span id="studentTotalBadge" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg ml-2">총 0명</span></h2>
-            <p class="text-xs text-slate-500 mt-1">학생을 등록, 수정하거나 엑셀/CSV로 일괄 업로드합니다.</p>
+            <p class="text-xs text-slate-500 mt-1">학생 명단을 관리합니다. (관리자 권한)</p>
           </div>
-          <div class="flex gap-2">
+          <div class="flex gap-2" id="studentActionBtns">
             <button onclick="deleteSelectedStudents()" id="deleteSelectedStudentsBtn" class="px-3.5 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold whitespace-nowrap hidden transition shadow-sm"><i class="fa-solid fa-trash-can"></i> 선택 삭제 (<span id="selectedStudentCount">0</span>)</button>
             <button onclick="openStudentModal('add')" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold whitespace-nowrap transition shadow-sm"><i class="fa-solid fa-user-plus"></i> 학생 추가</button>
           </div>
         </div>
         
-        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center gap-3">
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center gap-3" id="studentUploadPanel">
           <div class="text-xs text-slate-600 font-bold"><i class="fa-solid fa-file-excel text-emerald-600"></i> 명단 엑셀/CSV 업로드 (헤더: 학년, 반, 번호, 이름, 보호자휴대폰번호):</div>
           <div class="flex items-center gap-2 w-full md:w-auto">
             <input type="file" id="studentCsvFileInput" accept=".csv, .xlsx, .xls" class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:bg-slate-200 cursor-pointer">
@@ -213,16 +269,8 @@
         </div>
         <div class="rounded-xl border overflow-hidden">
           <table class="w-full text-left text-xs text-slate-600">
-            <thead class="bg-slate-50 font-bold border-b">
-              <tr>
-                <th class="py-3 px-4 w-10 text-center"><input type="checkbox" id="selectAllStudentsCb" onclick="toggleSelectAllStudents(this)" class="w-4 h-4 rounded text-blue-600 cursor-pointer"></th>
-                <th class="py-3 px-4">학년</th>
-                <th class="py-3 px-4">반</th>
-                <th class="py-3 px-4">번호</th>
-                <th class="py-3 px-4">이름</th>
-                <th class="py-3 px-4">보호자 연락처</th>
-                <th class="py-3 px-4 text-center">관리</th>
-              </tr>
+            <thead class="bg-slate-50 font-bold border-b" id="studentsTableHead">
+              <!-- JS rendered -->
             </thead>
             <tbody id="studentsTableBody" class="divide-y divide-slate-100"></tbody>
           </table>
@@ -362,14 +410,19 @@
             document.getElementById('grantTeacherName').value = currentUser.name;
             document.getElementById('userAvatar').textContent = currentUser.name.charAt(0);
             
+            // 관리자 / 일반 교사 화면 분기
             if(currentUser.role === 'admin') {
               document.getElementById('headerUserBadge').textContent = '최고관리자';
               document.getElementById('headerUserBadge').className = 'text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold';
               document.getElementById('nav-teachers').classList.remove('hidden');
               document.getElementById('adminCriteriaControls').classList.remove('hidden');
+              document.getElementById('studentActionBtns').classList.remove('hidden');
+              document.getElementById('studentUploadPanel').classList.remove('hidden');
             } else {
               document.getElementById('nav-teachers').classList.add('hidden');
               document.getElementById('adminCriteriaControls').classList.add('hidden');
+              document.getElementById('studentActionBtns').classList.add('hidden');
+              document.getElementById('studentUploadPanel').classList.add('hidden');
             }
             refreshAllDataViews();
             return;
@@ -487,7 +540,7 @@
       document.getElementById('grantDate').value = new Date().toISOString().split('T')[0];
       populateGrantItems(); 
       initClassDropdowns();
-      setGrantSelectMode(grantSelectMode); // 탭 시각화 활성화
+      setGrantSelectMode(grantSelectMode); 
     }
     
     function populateGrantItems() {
@@ -497,7 +550,9 @@
       categories.forEach(cat => {
         html += `<optgroup label="${cat}">`;
         criteria.filter(c => c.category === cat).forEach(c => {
-          html += `<option value="${c.id}" data-score="${c.scoreRange}" data-default="${c.defaultScore}">[${c.code}번] ${c.desc}</option>`;
+          // 내용 뒤에 (${c.scoreRange}점) 을 추가하여 점수 표시
+          const sign = grantType === 'merit' ? '+' : '-';
+          html += `<option value="${c.id}" data-score="${c.scoreRange}" data-default="${c.defaultScore}">[${c.code}번] ${c.desc} (${sign}${c.scoreRange}점)</option>`;
         });
         html += `</optgroup>`;
       });
@@ -547,11 +602,113 @@
       document.getElementById('grantDetails').value = ''; clearSelectedStudentsBasket();
     }
 
+    function handleGrantCSVUpload() {
+      const fileInput = document.getElementById('grantCsvFileInput');
+      const file = fileInput.files[0];
+      if (!file) { alert('업로드할 파일을 선택해주세요.'); return; }
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'xlsx' || ext === 'xls') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const csvText = XLSX.utils.sheet_to_csv(worksheet);
+          processGrantCSVLines(csvText);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          let text = e.target.result;
+          if (text.includes('')) {
+            const r2 = new FileReader(); r2.onload = function(e2) { processGrantCSVLines(e2.target.result); }; r2.readAsText(file, 'UTF-8'); return;
+          }
+          processGrantCSVLines(text);
+        };
+        try { reader.readAsText(file, 'EUC-KR'); } catch (err) { reader.readAsText(file, 'UTF-8'); }
+      }
+    }
+    
+    function processGrantCSVLines(text) {
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length < 2) { alert('파일에 데이터가 없습니다.'); return; }
+      
+      const header = lines[0].replace(/\s+/g, '').split(',');
+      const gradeIdx = header.findIndex(h => h.includes('학년'));
+      const classIdx = header.findIndex(h => h.includes('반'));
+      const numIdx = header.findIndex(h => h.includes('번호') && !h.includes('기준') && !h.includes('상점'));
+      const nameIdx = header.findIndex(h => h.includes('이름') || h.includes('성명'));
+      const typeIdx = header.findIndex(h => h.includes('상점/벌점') || h.includes('구분') || h.includes('상벌점'));
+      let codeIdx = header.findIndex(h => h.includes('상점/벌점번호') || h.includes('기준번호') || h.includes('규정번호'));
+      if(codeIdx === -1 && header.findIndex(h => h === '번호') !== numIdx) {
+          codeIdx = header.findLastIndex(h => h.includes('번호'));
+      }
+      const teacherIdx = header.findIndex(h => h.includes('교사'));
+
+      if ([gradeIdx, classIdx, numIdx, nameIdx, typeIdx, codeIdx].includes(-1)) {
+          alert('파일 헤더 형식이 올바르지 않습니다.\n필수: 학년, 반, 번호, 이름, 구분(상점/벌점), 기준번호'); 
+          return; 
+      }
+
+      const students = getStoredData(STORAGE_KEYS.STUDENTS);
+      const criteria = getStoredData(STORAGE_KEYS.CRITERIA);
+      const records = getStoredData(STORAGE_KEYS.RECORDS);
+      
+      let add = 0, fail = 0;
+      const today = new Date().toISOString().split('T')[0];
+
+      for (let i = 1; i < lines.length; i++) {
+        let row = []; let inQuote = false; let curStr = '';
+        for (let char of lines[i]) {
+            if (char === '"') { inQuote = !inQuote; }
+            else if (char === ',' && !inQuote) { row.push(curStr.trim()); curStr = ''; }
+            else { curStr += char; }
+        }
+        row.push(curStr.trim());
+        
+        if (row.length < 6) continue;
+
+        const g = parseInt(row[gradeIdx], 10), c = parseInt(row[classIdx], 10), n = parseInt(row[numIdx], 10);
+        const name = row[nameIdx], typeStr = row[typeIdx], code = parseInt(row[codeIdx], 10);
+        const teacherName = (teacherIdx !== -1 && row[teacherIdx]) ? row[teacherIdx] : currentUser.name;
+
+        if (isNaN(g) || isNaN(c) || isNaN(n) || !name || isNaN(code)) { fail++; continue; }
+
+        const type = typeStr.includes('상점') ? 'merit' : 'demerit';
+        const st = students.find(s => s.grade === g && s.classNum === c && s.number === n && s.name === name);
+        if (!st) { fail++; continue; }
+
+        const crit = criteria.find(cr => cr.type === type && cr.code === code);
+        if (!crit) { fail++; continue; }
+
+        const finalScore = type === 'merit' ? crit.defaultScore : -crit.defaultScore;
+
+        records.push({
+          id: 'REC-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          date: today, studentId: st.id, studentName: st.name, grade: st.grade, classNum: st.classNum, number: st.number,
+          type: type, category: crit.category, code: crit.code, description: crit.desc, score: finalScore, details: '엑셀 일괄 부여',
+          teacherId: currentUser.id, teacherName: teacherName, createdAt: new Date().toISOString()
+        });
+        add++;
+      }
+      setStoredData(STORAGE_KEYS.RECORDS, records);
+      document.getElementById('grantCsvFileInput').value = '';
+      alert(`상벌점 일괄 부여 완료!\n성공: ${add}건\n실패(학생/기준 불일치 등): ${fail}건`);
+      refreshAllDataViews();
+    }
+
     /* TAB 2, 3: 통계 & 과벌점 */
     function renderRecordsTable() {
       let totalMerit = 0, totalDemerit = 0;
+      const isAdmin = currentUser && currentUser.role === 'admin';
+      
       document.getElementById('recordsTableBody').innerHTML = getStoredData(STORAGE_KEYS.RECORDS).map(r => {
         if(r.score > 0) totalMerit += r.score; else totalDemerit += r.score;
+        const canDelete = isAdmin || r.teacherId === currentUser.id;
+        
         return `<tr class="hover:bg-slate-50">
           <td class="py-3 px-4">${r.date}</td><td class="py-3 px-4 font-bold">${r.grade}-${r.classNum}-${r.number} ${r.studentName}</td>
           <td class="py-3 px-4">${r.type==='merit'?'<span class="text-emerald-600 font-bold">상점</span>':'<span class="text-rose-600 font-bold">벌점</span>'}</td>
@@ -559,7 +716,9 @@
           <td class="py-3 px-4">${r.details}</td>
           <td class="py-3 px-4 font-bold ${r.score>0?'text-emerald-600':'text-rose-600'}">${r.score>0?'+':''}${r.score}점</td>
           <td class="py-3 px-4">${r.teacherName}</td>
-          <td class="py-3 px-4"><button onclick="deleteRecord('${r.id}')" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-trash-can"></i></button></td>
+          <td class="py-3 px-4 text-center">
+            ${canDelete ? `<button onclick="deleteRecord('${r.id}')" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-trash-can"></i></button>` : `<span class="text-slate-300" title="삭제 권한 없음"><i class="fa-solid fa-ban"></i></span>`}
+          </td>
         </tr>`;
       }).join('');
       const net = totalMerit + totalDemerit;
@@ -571,13 +730,53 @@
     function deleteRecord(id) { if(confirm('삭제하시겠습니까?')) setStoredData(STORAGE_KEYS.RECORDS, getStoredData(STORAGE_KEYS.RECORDS).filter(r => r.id !== id)); }
 
     let currentWarningTier = 1;
-    function setWarningTier(tier) { currentWarningTier = tier; renderWarningTable(); }
+    function setWarningTier(tier) { 
+      currentWarningTier = tier; 
+      
+      const styles = {
+        1: 'bg-amber-50 border-amber-400 shadow-md ring-2 ring-amber-200',
+        2: 'bg-orange-50 border-orange-400 shadow-md ring-2 ring-orange-200',
+        3: 'bg-rose-50 border-rose-400 shadow-md ring-2 ring-rose-200',
+        4: 'bg-purple-50 border-purple-400 shadow-md ring-2 ring-purple-200',
+        5: 'bg-red-50 border-red-500 shadow-md ring-2 ring-red-300'
+      };
+
+      for(let i=1; i<=5; i++) {
+        const btn = document.getElementById(`tierBtn${i}`);
+        if(i === tier) {
+          btn.className = `tier-btn flex flex-col justify-between p-3 rounded-xl border text-center transition-all duration-200 ${styles[i]}`;
+        } else {
+          btn.className = `tier-btn flex flex-col justify-between p-3 rounded-xl border text-center transition-all duration-200 bg-slate-50 border-slate-200 hover:bg-slate-100 opacity-60 hover:opacity-100`;
+        }
+      }
+
+      renderWarningTable(); 
+    }
+    
     function renderWarningView() {
+      const startDate = document.getElementById('warningStartDate') ? document.getElementById('warningStartDate').value : '';
+      const endDate = document.getElementById('warningEndDate') ? document.getElementById('warningEndDate').value : '';
+
       const studentMap = {};
       getStoredData(STORAGE_KEYS.STUDENTS).forEach(st => studentMap[st.id] = { student: st, demTotal: 0, merTotal: 0 });
-      getStoredData(STORAGE_KEYS.RECORDS).forEach(r => {
-        if(studentMap[r.studentId]) { if(r.score > 0) studentMap[r.studentId].merTotal += r.score; else studentMap[r.studentId].demTotal += r.score; }
+      
+      let records = getStoredData(STORAGE_KEYS.RECORDS);
+
+      if (startDate || endDate) {
+        records = records.filter(r => {
+          if (startDate && r.date < startDate) return false;
+          if (endDate && r.date > endDate) return false;
+          return true;
+        });
+      }
+
+      records.forEach(r => {
+        if(studentMap[r.studentId]) { 
+          if(r.score > 0) studentMap[r.studentId].merTotal += r.score; 
+          else studentMap[r.studentId].demTotal += r.score; 
+        }
       });
+
       window.warningTiersData = { 1:[], 2:[], 3:[], 4:[], 5:[] };
       Object.values(studentMap).forEach(item => {
         const d = item.demTotal;
@@ -588,8 +787,10 @@
         else if(d <= -51) window.warningTiersData[5].push(item);
       });
       for(let i=1;i<=5;i++) document.getElementById(`tierCount${i}`).textContent = `${window.warningTiersData[i].length}명`;
-      renderWarningTable();
+      
+      setWarningTier(currentWarningTier);
     }
+
     function renderWarningTable() {
       const data = window.warningTiersData[currentWarningTier] || [];
       document.getElementById('warningTableBody').innerHTML = data.map(item => `<tr class="hover:bg-slate-50">
@@ -602,6 +803,7 @@
       const students = getStoredData(STORAGE_KEYS.STUDENTS);
       const gradeFilter = document.getElementById('studentListGradeFilter').value;
       const searchQuery = (document.getElementById('studentListSearch').value || '').trim().toLowerCase();
+      const isAdmin = currentUser && currentUser.role === 'admin';
 
       let filtered = students;
       if(gradeFilter !== 'all') {
@@ -613,24 +815,36 @@
 
       document.getElementById('studentTotalBadge').textContent = `총 ${filtered.length}명 (전체 ${students.length}명)`;
       
+      document.getElementById('studentsTableHead').innerHTML = `
+        <tr>
+          ${isAdmin ? `<th class="py-3 px-4 w-10 text-center"><input type="checkbox" id="selectAllStudentsCb" onclick="toggleSelectAllStudents(this)" class="w-4 h-4 rounded text-blue-600 cursor-pointer"></th>` : ''}
+          <th class="py-3 px-4">학년</th>
+          <th class="py-3 px-4">반</th>
+          <th class="py-3 px-4">번호</th>
+          <th class="py-3 px-4">이름</th>
+          <th class="py-3 px-4">보호자 연락처</th>
+          ${isAdmin ? `<th class="py-3 px-4 text-center">관리</th>` : ''}
+        </tr>
+      `;
+
       document.getElementById('studentsTableBody').innerHTML = filtered.map(st => {
         const isChecked = selectedStudentsForDelete.has(st.id);
         return `
         <tr class="hover:bg-slate-50">
-          <td class="py-3 px-4 text-center"><input type="checkbox" class="student-select-cb w-4 h-4 rounded text-blue-600 cursor-pointer" value="${st.id}" ${isChecked ? 'checked' : ''} onclick="toggleStudentForDelete('${st.id}')"></td>
+          ${isAdmin ? `<td class="py-3 px-4 text-center"><input type="checkbox" class="student-select-cb w-4 h-4 rounded text-blue-600 cursor-pointer" value="${st.id}" ${isChecked ? 'checked' : ''} onclick="toggleStudentForDelete('${st.id}')"></td>` : ''}
           <td class="py-3 px-4">${st.grade}학년</td>
           <td class="py-3 px-4">${st.classNum}반</td>
           <td class="py-3 px-4">${st.number}번</td>
           <td class="py-3 px-4 font-bold">${st.name}</td>
           <td class="py-3 px-4 text-slate-500">${st.phone || ''}</td>
-          <td class="py-3 px-4 text-center">
+          ${isAdmin ? `<td class="py-3 px-4 text-center">
             <button onclick="openStudentModal('edit', '${st.id}')" class="text-indigo-500 mx-1"><i class="fa-solid fa-pen-to-square"></i></button>
             <button onclick="deleteStudent('${st.id}')" class="text-rose-500 mx-1"><i class="fa-solid fa-trash-can"></i></button>
-          </td>
+          </td>` : ''}
         </tr>
       `}).join('');
       
-      updateStudentDeleteUI();
+      if(isAdmin) updateStudentDeleteUI();
     }
 
     function toggleStudentForDelete(id) {
@@ -651,6 +865,8 @@
 
     function updateStudentDeleteUI() {
       const btn = document.getElementById('deleteSelectedStudentsBtn');
+      if(!btn) return;
+      
       const countSpan = document.getElementById('selectedStudentCount');
       const count = selectedStudentsForDelete.size;
       
@@ -664,10 +880,10 @@
       
       const cbAll = document.getElementById('selectAllStudentsCb');
       const displayedCheckboxes = document.querySelectorAll('.student-select-cb');
-      if(displayedCheckboxes.length > 0) {
+      if(displayedCheckboxes.length > 0 && cbAll) {
          const allChecked = Array.from(displayedCheckboxes).every(c => c.checked);
          cbAll.checked = allChecked;
-      } else {
+      } else if (cbAll) {
          cbAll.checked = false;
       }
     }
