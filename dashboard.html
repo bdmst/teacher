@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>천안불당중학교 - 상벌점 대시보드</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: 'Noto Sans KR', sans-serif; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col hidden" id="dashboardBody">
+
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-900 text-amber-300 flex items-center justify-center shadow-md">
+            <i class="fa-solid fa-school text-lg"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">천안불당중학교</span>
+              <span class="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">생활지도</span>
+            </div>
+            <p class="text-[11px] text-slate-500 font-medium">학생 상벌점 관리 포털</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="student.html" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
+            <i class="fa-solid fa-magnifying-glass"></i> 학생 조회창 <i class="fa-solid fa-external-link text-[10px]"></i>
+          </a>
+          <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+            <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold" id="userAvatar">교</div>
+            <div class="text-left hidden md:block">
+              <div class="text-xs font-bold text-slate-800 flex items-center gap-1">
+                <span id="headerUserName">선생님</span>
+                <span id="headerUserBadge" class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-semibold">교사</span>
+              </div>
+            </div>
+          </div>
+          <button onclick="handleLogout()" title="로그아웃" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition">
+            <i class="fa-solid fa-arrow-right-to-bracket text-base"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="bg-slate-100 border-t border-slate-200 px-4 sm:px-6 lg:px-8 overflow-x-auto custom-scrollbar">
+      <div class="max-w-7xl mx-auto flex gap-1 py-1.5 text-xs font-semibold whitespace-nowrap">
+        <button onclick="setActiveTab('grant')" id="nav-grant" class="tab-btn active px-3.5 py-2 rounded-lg bg-white text-blue-700 shadow-xs flex items-center gap-1.5 transition"><i class="fa-solid fa-stamp"></i> 상벌점 부여</button>
+        <button onclick="setActiveTab('records')" id="nav-records" class="tab-btn px-3.5 py-2 rounded-lg text-slate-600 hover:bg-white/60 flex items-center gap-1.5 transition"><i class="fa-solid fa-clipboard-list"></i> 상벌점 내역 및 통계</button>
+        <button onclick="setActiveTab('warning')" id="nav-warning" class="tab-btn px-3.5 py-2 rounded-lg text-slate-600 hover:bg-white/60 flex items-center gap-1.5 transition"><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> 과벌점 학생 관리</button>
+        <button onclick="setActiveTab('students')" id="nav-students" class="tab-btn px-3.5 py-2 rounded-lg text-slate-600 hover:bg-white/60 flex items-center gap-1.5 transition"><i class="fa-solid fa-users"></i> 학생 정보 관리</button>
+        <button onclick="setActiveTab('criteria')" id="nav-criteria" class="tab-btn px-3.5 py-2 rounded-lg text-slate-600 hover:bg-white/60 flex items-center gap-1.5 transition"><i class="fa-solid fa-scale-balanced"></i> 상벌점 기준표</button>
+        <button onclick="setActiveTab('teachers')" id="nav-teachers" class="tab-btn px-3.5 py-2 rounded-lg text-slate-600 hover:bg-white/60 flex items-center gap-1.5 transition hidden"><i class="fa-solid fa-user-shield text-indigo-600"></i> 교사 승인 관리 <span id="pendingBadge" class="hidden px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px]">0</span></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- TAB 1: 상벌점 부여 -->
+    <section id="tab-grant-content" class="tab-content space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-5 mb-5 border-b border-slate-100 gap-4">
+          <div><h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-stamp text-blue-600"></i> 상벌점 부여</h2><p class="text-xs text-slate-500 mt-0.5">학생 개개인 또는 학급 내 여러 학생에게 한 번에 상벌점을 등록합니다.</p></div>
+          <div class="flex flex-wrap bg-slate-100 p-1 rounded-xl text-xs font-semibold gap-1">
+            <button type="button" onclick="setGrantSelectMode('search')" id="grantModeSearchBtn" class="px-3.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-700 transition flex items-center gap-1.5"><i class="fa-solid fa-magnifying-glass"></i> 학생 이름 검색</button>
+            <button type="button" onclick="setGrantSelectMode('class')" id="grantModeClassBtn" class="px-3.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-700 transition flex items-center gap-1.5"><i class="fa-solid fa-users"></i> 학급별 선택</button>
+            <button type="button" onclick="setGrantSelectMode('dropdown')" id="grantModeDropdownBtn" class="px-3.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-700 transition flex items-center gap-1.5"><i class="fa-solid fa-list-ol"></i> 직접 선택</button>
+          </div>
+        </div>
+
+        <form id="grantForm" onsubmit="handleGrantSubmit(event)" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div><label class="block text-xs font-bold text-slate-700 mb-1.5">부여 일자</label><input type="date" id="grantDate" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-600"></div>
+            <div><label class="block text-xs font-bold text-slate-700 mb-1.5">부여 교사</label><input type="text" id="grantTeacherName" readonly class="w-full px-3 py-2 text-sm bg-slate-100 text-slate-600 border border-slate-200 rounded-xl cursor-not-allowed"></div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1.5">상벌점 구분 <span class="text-rose-500">*</span></label>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="setGrantType('merit')" id="grantTypeMeritBtn" class="py-2 text-xs font-bold rounded-xl border border-emerald-500 bg-emerald-50 text-emerald-700 flex items-center justify-center gap-1 transition"><i class="fa-solid fa-plus"></i> 상점 (+)</button>
+                <button type="button" onclick="setGrantType('demerit')" id="grantTypeDemeritBtn" class="py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1 transition"><i class="fa-solid fa-minus"></i> 벌점 (-)</button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1.5">부여 점수 <span class="text-rose-500">*</span></label>
+              <div class="flex items-center gap-2">
+                <select id="grantScore" required class="flex-1 px-3 py-2 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-600 text-blue-700">
+                  <option value="1">1점</option><option value="2" selected>2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option>
+                </select>
+                <span id="scorePreviewBadge" class="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 font-bold whitespace-nowrap">+2점</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div><label class="block text-xs font-bold text-slate-700 mb-1.5">세부 규정 항목 직접 선택 (영역별)</label><select id="grantItem" onchange="onGrantItemChange()" class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-blue-600 custom-scrollbar"></select></div>
+            <div><label class="block text-xs font-bold text-slate-700 mb-1.5">세부 사항 (구체적인 사유 기록)</label><input type="text" id="grantDetails" placeholder="예: 2교시 영어시간 면학분위기 저해" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-blue-600"></div>
+          </div>
+
+          <div class="space-y-4">
+            <div id="grantTargetSearch" class="space-y-3 bg-blue-50/60 p-4 rounded-2xl border border-blue-200">
+              <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-magnifying-glass text-blue-600"></i> 학생 이름 검색</h3>
+              <div class="relative max-w-md">
+                <input type="text" id="grantSearchNameInput" oninput="handleGrantSearchInput(this.value)" placeholder="이름 입력 (예: 강민준)" class="w-full pl-9 pr-9 py-2.5 text-sm bg-white border border-blue-300 rounded-xl focus:border-blue-600 transition">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
+              </div>
+              <div id="grantSearchResults" class="space-y-2 max-h-56 overflow-y-auto custom-scrollbar p-1"></div>
+            </div>
+            <div id="grantTargetClass" class="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 hidden">
+              <div class="flex justify-between items-center"><h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-users text-blue-600"></i> 학급별 일괄 선택</h3>
+                <div class="flex gap-2"><button type="button" onclick="selectAllClassStudents()" class="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg font-bold">전체 선택</button><button type="button" onclick="deselectAllClassStudents()" class="text-xs text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-lg font-medium">전체 해제</button></div>
+              </div>
+              <div class="grid grid-cols-2 gap-3 max-w-xs"><select id="classModeGrade" onchange="updateClassModeCheckboxes()" class="w-full px-3 py-2 text-sm bg-white border rounded-xl"><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select><select id="classModeClass" onchange="updateClassModeCheckboxes()" class="w-full px-3 py-2 text-sm bg-white border rounded-xl"></select></div>
+              <div id="classModeStudentGrid" class="bg-white p-3 rounded-xl border border-slate-200 max-h-56 overflow-y-auto grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2"></div>
+            </div>
+            <div id="grantTargetDropdown" class="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 hidden">
+              <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-list-ol text-blue-600"></i> 학년/반/번호 직접 선택</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <select id="dropdownGrade" onchange="updateDropdownStudentList()" class="w-full px-3 py-2 text-sm bg-white border rounded-xl"><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select>
+                <select id="dropdownClass" onchange="updateDropdownStudentList()" class="w-full px-3 py-2 text-sm bg-white border rounded-xl"></select>
+                <select id="dropdownStudentSelect" class="w-full px-3 py-2 text-sm bg-white border rounded-xl"></select>
+                <button type="button" onclick="addDropdownStudentToBasket()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold"><i class="fa-solid fa-plus"></i> 추가</button>
+              </div>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+              <div class="flex justify-between items-center"><div class="flex items-center gap-2"><span class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-clipboard-check text-blue-600"></i> 선택된 학생</span><span id="basketCountBadge" class="text-xs font-black bg-blue-600 text-white px-2.5 py-0.5 rounded-full">0명</span></div><button type="button" onclick="clearSelectedStudentsBasket()" class="text-xs text-rose-600 font-semibold"><i class="fa-solid fa-trash-can text-[11px]"></i> 비우기</button></div>
+              <div id="selectedStudentsChips" class="flex flex-wrap gap-2 min-h-[44px] p-2.5 bg-white rounded-xl border border-slate-200 items-center"></div>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-100 flex justify-end"><button type="submit" class="px-6 py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-sm transition flex items-center gap-2"><i class="fa-solid fa-check"></i> <span id="grantSubmitBtnText">상벌점 등록하기 (선택된 0명)</span></button></div>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 2: 통계 -->
+    <section id="tab-records-content" class="tab-content space-y-6 hidden">
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border shadow-xs flex items-center justify-between"><div><p class="text-xs font-semibold text-slate-400">총 건수</p><h3 class="text-2xl font-black mt-1" id="statTotalCount">0건</h3></div><div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-list-check"></i></div></div>
+        <div class="bg-white p-5 rounded-2xl border shadow-xs flex items-center justify-between"><div><p class="text-xs font-semibold text-emerald-600">총 상점</p><h3 class="text-2xl font-black text-emerald-700 mt-1" id="statTotalMerit">+0점</h3></div><div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl"><i class="fa-solid fa-plus"></i></div></div>
+        <div class="bg-white p-5 rounded-2xl border shadow-xs flex items-center justify-between"><div><p class="text-xs font-semibold text-rose-500">총 벌점</p><h3 class="text-2xl font-black text-rose-600 mt-1" id="statTotalDemerit">-0점</h3></div><div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl"><i class="fa-solid fa-minus"></i></div></div>
+        <div class="bg-white p-5 rounded-2xl border shadow-xs flex items-center justify-between"><div><p class="text-xs font-semibold text-slate-400">누계 점수</p><h3 class="text-2xl font-black text-indigo-700 mt-1" id="statNetScore">0점</h3></div><div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl"><i class="fa-solid fa-chart-line"></i></div></div>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-xs">
+        <div class="flex flex-wrap items-center gap-3">
+          <input type="date" id="filterStartDate" onchange="renderRecordsTable()" class="px-2.5 py-1.5 text-xs bg-slate-50 border rounded-lg"><span>~</span><input type="date" id="filterEndDate" onchange="renderRecordsTable()" class="px-2.5 py-1.5 text-xs bg-slate-50 border rounded-lg">
+          <select id="filterGrade" onchange="onFilterGradeChange()" class="px-2.5 py-1.5 text-xs bg-slate-50 border rounded-lg"><option value="all">전체 학년</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select>
+          <select id="filterClass" onchange="renderRecordsTable()" class="px-2.5 py-1.5 text-xs bg-slate-50 border rounded-lg"><option value="all">전체 반</option></select>
+          <select id="filterType" onchange="renderRecordsTable()" class="px-2.5 py-1.5 text-xs bg-slate-50 border rounded-lg"><option value="all">전체 구분</option><option value="merit">상점만 (+)</option><option value="demerit">벌점만 (-)</option></select>
+          <input type="text" id="filterKeyword" oninput="renderRecordsTable()" placeholder="이름 검색" class="px-2.5 py-1.5 text-xs bg-slate-50 border rounded-lg">
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border shadow-xs overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 text-slate-700 font-bold border-b"><tr><th class="py-3 px-4">일자</th><th class="py-3 px-4">학생 정보</th><th class="py-3 px-4 text-center">구분</th><th class="py-3 px-4">내용</th><th class="py-3 px-4">세부 사항</th><th class="py-3 px-4 text-center">점수</th><th class="py-3 px-4">교사</th><th class="py-3 px-4 text-center">관리</th></tr></thead>
+            <tbody id="recordsTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div id="recordsEmptyMsg" class="hidden p-8 text-center text-slate-400 text-xs">내역이 없습니다.</div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 과벌점 -->
+    <section id="tab-warning-content" class="tab-content space-y-6 hidden">
+      <div class="bg-white rounded-2xl border shadow-xs p-6 space-y-6">
+        <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> 과벌점 지도 대상 학생 관리</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          <button onclick="setWarningTier(1)" id="tierBtn1" class="tier-btn active p-3 rounded-xl border text-center bg-amber-50 border-amber-300"><div class="text-[11px] font-semibold text-amber-700">1단계 주의</div><div class="text-xs font-black mt-0.5">-11점 ~ -20점</div><div class="text-lg font-extrabold mt-1" id="tierCount1">0명</div></button>
+          <button onclick="setWarningTier(2)" id="tierBtn2" class="tier-btn p-3 rounded-xl border text-center bg-slate-50 border-slate-200"><div class="text-[11px] font-semibold text-orange-600">2단계 경고</div><div class="text-xs font-black mt-0.5">-21점 ~ -30점</div><div class="text-lg font-extrabold mt-1" id="tierCount2">0명</div></button>
+          <button onclick="setWarningTier(3)" id="tierBtn3" class="tier-btn p-3 rounded-xl border text-center bg-slate-50 border-slate-200"><div class="text-[11px] font-semibold text-rose-600">3단계 심각</div><div class="text-xs font-black mt-0.5">-31점 ~ -40점</div><div class="text-lg font-extrabold mt-1" id="tierCount3">0명</div></button>
+          <button onclick="setWarningTier(4)" id="tierBtn4" class="tier-btn p-3 rounded-xl border text-center bg-slate-50 border-slate-200"><div class="text-[11px] font-semibold text-purple-600">4단계 집중지도</div><div class="text-xs font-black mt-0.5">-41점 ~ -50점</div><div class="text-lg font-extrabold mt-1" id="tierCount4">0명</div></button>
+          <button onclick="setWarningTier(5)" id="tierBtn5" class="tier-btn p-3 rounded-xl border text-center bg-slate-50 border-slate-200"><div class="text-[11px] font-semibold text-red-700">5단계 회부</div><div class="text-xs font-black mt-0.5">-51점 이하</div><div class="text-lg font-extrabold mt-1" id="tierCount5">0명</div></button>
+        </div>
+        <div class="rounded-xl border overflow-hidden">
+          <table class="w-full text-left text-xs text-slate-600"><thead class="bg-slate-50 font-bold border-b"><tr><th class="py-3 px-4">학년-반-번호</th><th class="py-3 px-4">이름</th><th class="py-3 px-4 text-center">벌점</th><th class="py-3 px-4 text-center">상점</th><th class="py-3 px-4 text-center">누계</th><th class="py-3 px-4 text-center">상세</th></tr></thead><tbody id="warningTableBody" class="divide-y divide-slate-100"></tbody></table>
+          <div id="warningEmptyMsg" class="p-8 text-center text-slate-400 text-xs">학생이 없습니다.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: 학생 관리 -->
+    <section id="tab-students-content" class="tab-content space-y-6 hidden">
+      <div class="bg-white rounded-2xl border shadow-xs p-6 space-y-4">
+        
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-100 gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-users text-slate-700"></i> 학생 목록 <span id="studentTotalBadge" class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg ml-2">총 0명</span></h2>
+            <p class="text-xs text-slate-500 mt-1">학생을 등록, 수정하거나 엑셀/CSV로 일괄 업로드합니다.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="deleteSelectedStudents()" id="deleteSelectedStudentsBtn" class="px-3.5 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold whitespace-nowrap hidden transition shadow-sm"><i class="fa-solid fa-trash-can"></i> 선택 삭제 (<span id="selectedStudentCount">0</span>)</button>
+            <button onclick="openStudentModal('add')" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold whitespace-nowrap transition shadow-sm"><i class="fa-solid fa-user-plus"></i> 학생 추가</button>
+          </div>
+        </div>
+        
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center gap-3">
+          <div class="text-xs text-slate-600 font-bold"><i class="fa-solid fa-file-excel text-emerald-600"></i> 명단 엑셀/CSV 업로드 (헤더: 학년, 반, 번호, 이름, 보호자휴대폰번호):</div>
+          <div class="flex items-center gap-2 w-full md:w-auto">
+            <input type="file" id="studentCsvFileInput" accept=".csv, .xlsx, .xls" class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:bg-slate-200 cursor-pointer">
+            <button onclick="handleStudentCSVUpload()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold whitespace-nowrap">일괄 등록</button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="studentListGradeFilter" onchange="renderStudentsTable()" class="px-3 py-1.5 text-xs bg-slate-50 border rounded-lg"><option value="all">전체 학년</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select>
+          <input type="text" id="studentListSearch" oninput="renderStudentsTable()" placeholder="이름 검색" class="px-3 py-1.5 text-xs bg-slate-50 border rounded-lg">
+        </div>
+        <div class="rounded-xl border overflow-hidden">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 font-bold border-b">
+              <tr>
+                <th class="py-3 px-4 w-10 text-center"><input type="checkbox" id="selectAllStudentsCb" onclick="toggleSelectAllStudents(this)" class="w-4 h-4 rounded text-blue-600 cursor-pointer"></th>
+                <th class="py-3 px-4">학년</th>
+                <th class="py-3 px-4">반</th>
+                <th class="py-3 px-4">번호</th>
+                <th class="py-3 px-4">이름</th>
+                <th class="py-3 px-4">보호자 연락처</th>
+                <th class="py-3 px-4 text-center">관리</th>
+              </tr>
+            </thead>
+            <tbody id="studentsTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: 기준표 -->
+    <section id="tab-criteria-content" class="tab-content space-y-6 hidden">
+      <div class="bg-white rounded-2xl border shadow-xs p-6 space-y-4">
+        <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+          <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-scale-balanced text-blue-600"></i> 상벌점 규정 기준표</h2>
+        </div>
+
+        <!-- 관리자 전용 UI: 일반 교사에게는 숨겨집니다 -->
+        <div id="adminCriteriaControls" class="hidden space-y-4">
+          <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 text-amber-800 text-[11px] font-bold"><i class="fa-solid fa-shield-halved"></i> 관리자 전용 패널: 기준표를 직접 추가하거나 엑셀(CSV) 파일로 일괄 업데이트 할 수 있습니다.</div>
+          
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div class="text-xs text-slate-600">
+              <span class="font-bold text-slate-800"><i class="fa-solid fa-file-excel text-emerald-600"></i> 엑셀/CSV 기준표 업로드:</span> 
+              상점 또는 벌점 파일을 업로드하면 기존 내역을 덮어씁니다.
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto">
+              <select id="criteriaUploadType" class="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg">
+                <option value="demerit">벌점 기준 업데이트</option>
+                <option value="merit">상점 기준 업데이트</option>
+              </select>
+              <input type="file" id="criteriaCsvFileInput" accept=".csv, .xlsx, .xls" class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:bg-slate-200 cursor-pointer">
+              <button onclick="handleCriteriaCSVUpload()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold whitespace-nowrap">적용</button>
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <button onclick="openCriterionModal('add')" class="px-3.5 py-2 bg-blue-700 text-white rounded-xl text-xs font-bold"><i class="fa-solid fa-plus"></i> 기준 항목 직접 추가</button>
+          </div>
+        </div>
+
+        <!-- 탭 및 목록 (모든 교사 확인 가능) -->
+        <div class="flex gap-2">
+          <button onclick="setCriteriaTab('all')" id="critTabAll" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-blue-700 text-white">전체</button>
+          <button onclick="setCriteriaTab('demerit')" id="critTabDemerit" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-rose-600">벌점 규정</button>
+          <button onclick="setCriteriaTab('merit')" id="critTabMerit" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-emerald-600">상점 규정</button>
+        </div>
+        <div class="rounded-xl border overflow-hidden">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 font-bold border-b" id="criteriaTableHead">
+              <!-- JS 동적 렌더링 -->
+            </thead>
+            <tbody id="criteriaTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: 교사 승인 관리 -->
+    <section id="tab-teachers-content" class="tab-content space-y-6 hidden">
+      <div class="bg-white rounded-2xl border shadow-xs p-6 space-y-6">
+        <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-user-shield text-indigo-600"></i> 교직원 승인 관리 (관리자 전용)</h2>
+        <div><h3 class="text-sm font-bold text-slate-800 mb-3">승인 대기 중인 교사</h3><div class="rounded-xl border overflow-hidden"><table class="w-full text-left text-xs"><tbody id="pendingTeachersTableBody" class="divide-y"></tbody></table></div></div>
+        <div><h3 class="text-sm font-bold text-slate-800 mb-3 mt-6">승인 완료된 교직원</h3><div class="rounded-xl border overflow-hidden"><table class="w-full text-left text-xs"><tbody id="approvedTeachersTableBody" class="divide-y"></tbody></table></div></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 학생 모달 -->
+  <div id="studentModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 hidden">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-md"><h3 class="text-base font-bold mb-4" id="studentModalTitle">학생 정보 등록</h3><form id="studentModalForm" onsubmit="handleSaveStudent(event)" class="space-y-3.5"><input type="hidden" id="studentModalId"><div class="grid grid-cols-3 gap-2"><select id="modalStudentGrade" required class="px-3 py-2 text-sm border rounded-xl"><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select><input type="number" id="modalStudentClass" required placeholder="반" class="px-3 py-2 text-sm border rounded-xl"><input type="number" id="modalStudentNumber" required placeholder="번호" class="px-3 py-2 text-sm border rounded-xl"></div><input type="text" id="modalStudentName" required placeholder="이름" class="w-full px-3 py-2 text-sm border rounded-xl"><input type="text" id="modalStudentPhone" required placeholder="보호자 연락처 (예: 010-1234-5678)" class="w-full px-3 py-2 text-sm border rounded-xl"><div class="pt-3 flex justify-end gap-2 border-t"><button type="button" onclick="closeStudentModal()" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold">취소</button><button type="submit" class="px-5 py-2 bg-blue-700 text-white rounded-xl text-xs font-bold">저장</button></div></form></div>
+  </div>
+  
+  <!-- 기준 모달 -->
+  <div id="criterionModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 hidden">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-md"><h3 class="text-base font-bold mb-4" id="criterionModalTitle">상벌점 기준 항목 추가</h3><form id="criterionModalForm" onsubmit="handleSaveCriterion(event)" class="space-y-3.5"><input type="hidden" id="criterionModalId"><div class="grid grid-cols-2 gap-3"><select id="modalCritType" required class="px-3 py-2 border rounded-xl text-sm"><option value="demerit">벌점 (-)</option><option value="merit">상점 (+)</option></select><input type="text" id="modalCritScore" required placeholder="점수 (예: 2)" class="px-3 py-2 border rounded-xl text-sm"></div><input type="text" id="modalCritCategory" required placeholder="카테고리" class="w-full px-3 py-2 border rounded-xl text-sm"><textarea id="modalCritDesc" required placeholder="규정 내용" class="w-full px-3 py-2 border rounded-xl text-sm"></textarea><div class="pt-3 flex justify-end gap-2 border-t"><button type="button" onclick="closeCriterionModal()" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold">취소</button><button type="submit" class="px-5 py-2 bg-blue-700 text-white rounded-xl text-xs font-bold">저장</button></div></form></div>
+  </div>
+  
+  <!-- 상세 내역 모달 -->
+  <div id="studentDetailModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 hidden">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-4 border-b pb-3"><div><h3 class="font-bold" id="detailModalStudentName">이력 카드</h3><p class="text-xs text-slate-400" id="detailModalStudentInfo">-</p></div><button onclick="closeStudentDetailModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button></div><div class="grid grid-cols-3 gap-3 mb-4 text-center"><div class="p-3 bg-emerald-50 border rounded-xl"><div class="text-[11px] font-bold">총 상점</div><div class="text-lg font-black text-emerald-700" id="detailModalMerit">+0점</div></div><div class="p-3 bg-rose-50 border rounded-xl"><div class="text-[11px] font-bold">총 벌점</div><div class="text-lg font-black text-rose-600" id="detailModalDemerit">-0점</div></div><div class="p-3 bg-blue-50 border rounded-xl"><div class="text-[11px] font-bold">누계 점수</div><div class="text-lg font-black text-blue-800" id="detailModalNet">0점</div></div></div><div class="flex-1 overflow-y-auto custom-scrollbar border rounded-xl"><table class="w-full text-left text-xs"><tbody id="detailModalHistoryBody" class="divide-y"></tbody></table></div></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBmN1XZLhsjrlN0XV5hFaMHhmpIulCaxhA",
+      authDomain: "buldang-school.firebaseapp.com",
+      databaseURL: "https://buldang-school-default-rtdb.firebaseio.com/",
+      projectId: "buldang-school",
+      storageBucket: "buldang-school.firebasestorage.app",
+      messagingSenderId: "59706126981",
+      appId: "1:59706126981:web:07061c065c61d69b7a6fec"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const STORAGE_KEYS = { TEACHERS: 'BDS_TEACHERS', CURRENT_USER: 'BDS_CURRENT_USER', STUDENTS: 'BDS_STUDENTS', CRITERIA: 'BDS_CRITERIA', RECORDS: 'BDS_RECORDS' };
+    let dbCache = { BDS_TEACHERS: [], BDS_STUDENTS: [], BDS_CRITERIA: [], BDS_RECORDS: [] };
+    let currentUser = null;
+    let isFirstLoad = true;
+    let selectedStudentsForDelete = new Set(); 
+
+    function setupRealtimeListener() {
+      db.ref('/').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          dbCache.BDS_TEACHERS = data.BDS_TEACHERS || [];
+          dbCache.BDS_STUDENTS = data.BDS_STUDENTS || [];
+          dbCache.BDS_CRITERIA = data.BDS_CRITERIA || [];
+          dbCache.BDS_RECORDS = data.BDS_RECORDS || [];
+        }
+        if (isFirstLoad) { isFirstLoad = false; checkAuthSession(); } 
+        else if (currentUser) { refreshAllDataViews(); }
+      }, (error) => {
+        console.error("Firebase Read Error:", error);
+        alert("데이터베이스 연결 오류! Firebase 보안 규칙이 읽기/쓰기 true로 설정되어 있는지 확인해주세요.");
+        if(isFirstLoad) {
+           document.getElementById('dashboardBody').classList.remove('hidden');
+           window.location.replace('index.html');
+        }
+      });
+    }
+
+    function getStoredData(key) { return dbCache[key] || []; }
+    function setStoredData(key, data) { dbCache[key] = data; db.ref(key).set(data); }
+
+    function checkAuthSession() {
+      const savedUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+      if (savedUser) {
+        try {
+          currentUser = JSON.parse(savedUser);
+          const teachers = getStoredData(STORAGE_KEYS.TEACHERS);
+          const matched = teachers.find(t => t.id === currentUser.id);
+          
+          if (matched && matched.status === 'approved') {
+            currentUser = matched;
+            document.getElementById('dashboardBody').classList.remove('hidden');
+            document.getElementById('headerUserName').textContent = currentUser.name;
+            document.getElementById('grantTeacherName').value = currentUser.name;
+            document.getElementById('userAvatar').textContent = currentUser.name.charAt(0);
+            
+            if(currentUser.role === 'admin') {
+              document.getElementById('headerUserBadge').textContent = '최고관리자';
+              document.getElementById('headerUserBadge').className = 'text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold';
+              document.getElementById('nav-teachers').classList.remove('hidden');
+              document.getElementById('adminCriteriaControls').classList.remove('hidden');
+            } else {
+              document.getElementById('nav-teachers').classList.add('hidden');
+              document.getElementById('adminCriteriaControls').classList.add('hidden');
+            }
+            refreshAllDataViews();
+            return;
+          } else {
+            localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+          }
+        } catch (e) { localStorage.removeItem(STORAGE_KEYS.CURRENT_USER); }
+      }
+      window.location.replace('index.html');
+    }
+
+    function handleLogout() {
+      if (confirm('로그아웃 하시겠습니까?')) {
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+        window.location.href = 'index.html';
+      }
+    }
+
+    let currentTab = 'grant';
+    function setActiveTab(tabName) {
+      currentTab = tabName;
+      document.querySelectorAll('.tab-btn').forEach(btn => { btn.classList.remove('active', 'bg-white', 'text-blue-700', 'shadow-xs'); btn.classList.add('text-slate-600'); });
+      document.getElementById(`nav-${tabName}`).classList.add('active', 'bg-white', 'text-blue-700', 'shadow-xs');
+      document.querySelectorAll('.tab-content').forEach(sec => sec.classList.add('hidden'));
+      document.getElementById(`tab-${tabName}-content`).classList.remove('hidden');
+      refreshAllDataViews();
+    }
+    function refreshAllDataViews() {
+      initGrantTabOptions(); renderRecordsTable(); renderWarningView(); renderStudentsTable(); renderCriteriaTable(); renderTeachersApprovalTable();
+    }
+
+    /* 상벌점 부여 TAB 1 */
+    let grantType = 'merit', grantSelectMode = 'search';
+    const selectedStudentIds = new Set();
+
+    function setGrantType(type) {
+      grantType = type;
+      document.getElementById('grantTypeMeritBtn').className = `py-2 text-xs font-bold rounded-xl border ${type==='merit'?'border-emerald-500 bg-emerald-50 text-emerald-700':'border-slate-200 bg-white text-slate-600'} flex items-center justify-center gap-1 transition`;
+      document.getElementById('grantTypeDemeritBtn').className = `py-2 text-xs font-bold rounded-xl border ${type==='demerit'?'border-rose-500 bg-rose-50 text-rose-700':'border-slate-200 bg-white text-slate-600'} flex items-center justify-center gap-1 transition`;
+      document.getElementById('scorePreviewBadge').className = `text-xs px-2.5 py-1.5 rounded-lg font-bold whitespace-nowrap ${type==='merit'?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}`;
+      populateGrantItems(); updateScoreBadge();
+    }
+    
+    function setGrantSelectMode(mode) {
+      grantSelectMode = mode;
+      
+      const modes = ['search', 'class', 'dropdown'];
+      modes.forEach(m => {
+        const btn = document.getElementById('grantMode' + m.charAt(0).toUpperCase() + m.slice(1) + 'Btn');
+        if (btn) {
+          if (m === mode) {
+            btn.className = "px-3.5 py-1.5 rounded-lg bg-white text-blue-700 shadow-xs transition flex items-center gap-1.5";
+          } else {
+            btn.className = "px-3.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-700 transition flex items-center gap-1.5";
+          }
+        }
+      });
+
+      document.getElementById('grantTargetSearch').classList.toggle('hidden', mode !== 'search');
+      document.getElementById('grantTargetClass').classList.toggle('hidden', mode !== 'class');
+      document.getElementById('grantTargetDropdown').classList.toggle('hidden', mode !== 'dropdown');
+      
+      if(mode === 'search') handleGrantSearchInput(document.getElementById('grantSearchNameInput').value);
+      if(mode === 'class') updateClassModeCheckboxes();
+      if(mode === 'dropdown') updateDropdownStudentList();
+    }
+    
+    function handleGrantSearchInput(query) {
+      query = query.trim().toLowerCase();
+      const resultsContainer = document.getElementById('grantSearchResults');
+      if (!query) { resultsContainer.innerHTML = ''; return; }
+      const matched = getStoredData(STORAGE_KEYS.STUDENTS).filter(s => s.name.toLowerCase().includes(query));
+      resultsContainer.innerHTML = matched.map(s => {
+        const isSelected = selectedStudentIds.has(s.id);
+        return `<div onclick="toggleSelectStudent('${s.id}')" class="flex items-center p-3 rounded-xl border cursor-pointer ${isSelected ? 'bg-blue-50 border-blue-400' : 'bg-white'}"><input type="checkbox" ${isSelected ? 'checked' : ''} class="w-4 h-4 text-blue-600 mr-3"><span class="font-bold text-sm">${s.name} <span class="text-xs font-normal text-slate-500 ml-1">(${s.grade}-${s.classNum} ${s.number}번)</span></span></div>`;
+      }).join('');
+    }
+    function toggleSelectStudent(id) { if(selectedStudentIds.has(id)) selectedStudentIds.delete(id); else selectedStudentIds.add(id); refreshSelectionUI(); }
+    function removeSelectedStudent(id) { selectedStudentIds.delete(id); refreshSelectionUI(); }
+    function clearSelectedStudentsBasket() { selectedStudentIds.clear(); refreshSelectionUI(); }
+    function refreshSelectionUI() {
+      const count = selectedStudentIds.size;
+      document.getElementById('basketCountBadge').textContent = `${count}명`;
+      document.getElementById('grantSubmitBtnText').textContent = `상벌점 등록하기 (선택된 ${count}명)`;
+      const students = getStoredData(STORAGE_KEYS.STUDENTS);
+      document.getElementById('selectedStudentsChips').innerHTML = count === 0 ? '' : Array.from(selectedStudentIds).map(id => {
+        const s = students.find(x => x.id === id);
+        return s ? `<div class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold"><span>${s.grade}-${s.classNum} ${s.name}</span><button type="button" onclick="removeSelectedStudent('${s.id}')" class="text-rose-500">&times;</button></div>` : '';
+      }).join('');
+      if(grantSelectMode === 'search') handleGrantSearchInput(document.getElementById('grantSearchNameInput').value);
+      if(grantSelectMode === 'class') updateClassModeCheckboxes();
+    }
+    function updateClassModeCheckboxes() {
+      const g = parseInt(document.getElementById('classModeGrade').value, 10), c = parseInt(document.getElementById('classModeClass').value, 10);
+      document.getElementById('classModeStudentGrid').innerHTML = getStoredData(STORAGE_KEYS.STUDENTS).filter(s => s.grade === g && s.classNum === c).map(s => {
+        const isChecked = selectedStudentIds.has(s.id);
+        return `<label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer text-xs ${isChecked ? 'bg-blue-50 font-bold' : 'bg-slate-50'}"><input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleSelectStudent('${s.id}')" class="w-4 h-4"><span>${s.number}번 ${s.name}</span></label>`;
+      }).join('');
+    }
+    function selectAllClassStudents() {
+      const g = parseInt(document.getElementById('classModeGrade').value, 10), c = parseInt(document.getElementById('classModeClass').value, 10);
+      getStoredData(STORAGE_KEYS.STUDENTS).filter(s => s.grade === g && s.classNum === c).forEach(s => selectedStudentIds.add(s.id)); refreshSelectionUI();
+    }
+    function deselectAllClassStudents() {
+      const g = parseInt(document.getElementById('classModeGrade').value, 10), c = parseInt(document.getElementById('classModeClass').value, 10);
+      getStoredData(STORAGE_KEYS.STUDENTS).filter(s => s.grade === g && s.classNum === c).forEach(s => selectedStudentIds.delete(s.id)); refreshSelectionUI();
+    }
+    function updateDropdownStudentList() {
+      const g = parseInt(document.getElementById('dropdownGrade').value, 10), c = parseInt(document.getElementById('dropdownClass').value, 10);
+      document.getElementById('dropdownStudentSelect').innerHTML = getStoredData(STORAGE_KEYS.STUDENTS).filter(s => s.grade === g && s.classNum === c).map(s => `<option value="${s.id}">${s.number}번 ${s.name}</option>`).join('');
+    }
+    function addDropdownStudentToBasket() { const stId = document.getElementById('dropdownStudentSelect').value; if(stId){ selectedStudentIds.add(stId); refreshSelectionUI(); } }
+    
+    function initGrantTabOptions() {
+      document.getElementById('grantDate').value = new Date().toISOString().split('T')[0];
+      populateGrantItems(); 
+      initClassDropdowns();
+      setGrantSelectMode(grantSelectMode); // 탭 시각화 활성화
+    }
+    
+    function populateGrantItems() {
+      const criteria = getStoredData(STORAGE_KEYS.CRITERIA).filter(c => c.type === grantType);
+      const categories = [...new Set(criteria.map(c => c.category))];
+      let html = '';
+      categories.forEach(cat => {
+        html += `<optgroup label="${cat}">`;
+        criteria.filter(c => c.category === cat).forEach(c => {
+          html += `<option value="${c.id}" data-score="${c.scoreRange}" data-default="${c.defaultScore}">[${c.code}번] ${c.desc}</option>`;
+        });
+        html += `</optgroup>`;
+      });
+      document.getElementById('grantItem').innerHTML = html;
+      onGrantItemChange();
+    }
+    
+    function onGrantItemChange() {
+      const opt = document.getElementById('grantItem').options[document.getElementById('grantItem').selectedIndex];
+      if(!opt) return;
+      const range = opt.getAttribute('data-score') || '2', def = parseInt(opt.getAttribute('data-default')||'2', 10);
+      const sel = document.getElementById('grantScore'); sel.innerHTML = '';
+      if(range.includes('~')) {
+        const [min, max] = range.split('~').map(Number);
+        for(let i=min; i<=max; i++) sel.innerHTML += `<option value="${i}" ${i===def?'selected':''}>${i}점</option>`;
+      } else {
+        const fixed = parseInt(range, 10) || def || 2;
+        sel.innerHTML = `<option value="${fixed}" selected>${fixed}점</option>`;
+      }
+      updateScoreBadge();
+    }
+    document.getElementById('grantScore').addEventListener('change', updateScoreBadge);
+    function updateScoreBadge() { const sc = document.getElementById('grantScore').value; document.getElementById('scorePreviewBadge').textContent = grantType === 'merit' ? `+${sc}점` : `-${sc}점`; }
+    function initClassDropdowns() {
+      const nums = [...new Set(getStoredData(STORAGE_KEYS.STUDENTS).map(s => s.classNum))].sort((a,b)=>a-b);
+      const html = (nums.length > 0 ? nums : [1,2,3]).map(c => `<option value="${c}">${c}반</option>`).join('');
+      document.getElementById('classModeClass').innerHTML = html; document.getElementById('dropdownClass').innerHTML = html;
+    }
+
+    function handleGrantSubmit(e) {
+      e.preventDefault();
+      if(selectedStudentIds.size === 0) { alert('대상 학생을 선택해주세요.'); return; }
+      const date = document.getElementById('grantDate').value, scoreVal = parseInt(document.getElementById('grantScore').value, 10);
+      const finalScore = grantType === 'merit' ? scoreVal : -scoreVal;
+      const critId = document.getElementById('grantItem').value;
+      const criterion = getStoredData(STORAGE_KEYS.CRITERIA).find(c => c.id === critId);
+      const category = criterion ? criterion.category : '일반';
+      const details = document.getElementById('grantDetails').value.trim();
+      const students = getStoredData(STORAGE_KEYS.STUDENTS), records = getStoredData(STORAGE_KEYS.RECORDS);
+
+      selectedStudentIds.forEach(stId => {
+        const st = students.find(x => x.id === stId);
+        if(st) records.push({ id: 'REC-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5), date, studentId: st.id, studentName: st.name, grade: st.grade, classNum: st.classNum, number: st.number, type: grantType, category, code: criterion?criterion.code:0, description: criterion?criterion.desc:'', score: finalScore, details: details||'-', teacherId: currentUser.id, teacherName: currentUser.name, createdAt: new Date().toISOString() });
+      });
+      setStoredData(STORAGE_KEYS.RECORDS, records);
+      alert(`${selectedStudentIds.size}명의 학생에게 점수 부여 완료!`);
+      document.getElementById('grantDetails').value = ''; clearSelectedStudentsBasket();
+    }
+
+    /* TAB 2, 3: 통계 & 과벌점 */
+    function renderRecordsTable() {
+      let totalMerit = 0, totalDemerit = 0;
+      document.getElementById('recordsTableBody').innerHTML = getStoredData(STORAGE_KEYS.RECORDS).map(r => {
+        if(r.score > 0) totalMerit += r.score; else totalDemerit += r.score;
+        return `<tr class="hover:bg-slate-50">
+          <td class="py-3 px-4">${r.date}</td><td class="py-3 px-4 font-bold">${r.grade}-${r.classNum}-${r.number} ${r.studentName}</td>
+          <td class="py-3 px-4">${r.type==='merit'?'<span class="text-emerald-600 font-bold">상점</span>':'<span class="text-rose-600 font-bold">벌점</span>'}</td>
+          <td class="py-3 px-4 truncate max-w-xs" title="${r.description}">${r.description}</td>
+          <td class="py-3 px-4">${r.details}</td>
+          <td class="py-3 px-4 font-bold ${r.score>0?'text-emerald-600':'text-rose-600'}">${r.score>0?'+':''}${r.score}점</td>
+          <td class="py-3 px-4">${r.teacherName}</td>
+          <td class="py-3 px-4"><button onclick="deleteRecord('${r.id}')" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-trash-can"></i></button></td>
+        </tr>`;
+      }).join('');
+      const net = totalMerit + totalDemerit;
+      document.getElementById('statTotalCount').textContent = `${getStoredData(STORAGE_KEYS.RECORDS).length}건`;
+      document.getElementById('statTotalMerit').textContent = `+${totalMerit}점`;
+      document.getElementById('statTotalDemerit').textContent = `${totalDemerit}점`;
+      document.getElementById('statNetScore').textContent = `${net>0?'+':''}${net}점`;
+    }
+    function deleteRecord(id) { if(confirm('삭제하시겠습니까?')) setStoredData(STORAGE_KEYS.RECORDS, getStoredData(STORAGE_KEYS.RECORDS).filter(r => r.id !== id)); }
+
+    let currentWarningTier = 1;
+    function setWarningTier(tier) { currentWarningTier = tier; renderWarningTable(); }
+    function renderWarningView() {
+      const studentMap = {};
+      getStoredData(STORAGE_KEYS.STUDENTS).forEach(st => studentMap[st.id] = { student: st, demTotal: 0, merTotal: 0 });
+      getStoredData(STORAGE_KEYS.RECORDS).forEach(r => {
+        if(studentMap[r.studentId]) { if(r.score > 0) studentMap[r.studentId].merTotal += r.score; else studentMap[r.studentId].demTotal += r.score; }
+      });
+      window.warningTiersData = { 1:[], 2:[], 3:[], 4:[], 5:[] };
+      Object.values(studentMap).forEach(item => {
+        const d = item.demTotal;
+        if(d <= -11 && d >= -20) window.warningTiersData[1].push(item);
+        else if(d <= -21 && d >= -30) window.warningTiersData[2].push(item);
+        else if(d <= -31 && d >= -40) window.warningTiersData[3].push(item);
+        else if(d <= -41 && d >= -50) window.warningTiersData[4].push(item);
+        else if(d <= -51) window.warningTiersData[5].push(item);
+      });
+      for(let i=1;i<=5;i++) document.getElementById(`tierCount${i}`).textContent = `${window.warningTiersData[i].length}명`;
+      renderWarningTable();
+    }
+    function renderWarningTable() {
+      const data = window.warningTiersData[currentWarningTier] || [];
+      document.getElementById('warningTableBody').innerHTML = data.map(item => `<tr class="hover:bg-slate-50">
+        <td class="py-3 px-4 font-bold">${item.student.grade}-${item.student.classNum}-${item.student.number}</td><td class="py-3 px-4">${item.student.name}</td><td class="py-3 px-4 text-center text-rose-600 font-black">${item.demTotal}점</td><td class="py-3 px-4 text-center text-emerald-600 font-bold">+${item.merTotal}점</td><td class="py-3 px-4 text-center font-black">${item.merTotal+item.demTotal}점</td><td class="py-3 px-4 text-center"><button onclick="openStudentDetailModal('${item.student.id}')" class="px-2 py-1 bg-slate-100 rounded text-[11px] font-bold">상세</button></td></tr>`
+      ).join('');
+    }
+
+    /* TAB 4: 학생 명단 엑셀/CSV 업로드 및 관리 */
+    function renderStudentsTable() {
+      const students = getStoredData(STORAGE_KEYS.STUDENTS);
+      const gradeFilter = document.getElementById('studentListGradeFilter').value;
+      const searchQuery = (document.getElementById('studentListSearch').value || '').trim().toLowerCase();
+
+      let filtered = students;
+      if(gradeFilter !== 'all') {
+        filtered = filtered.filter(s => String(s.grade) === gradeFilter);
+      }
+      if(searchQuery) {
+        filtered = filtered.filter(s => s.name.toLowerCase().includes(searchQuery));
+      }
+
+      document.getElementById('studentTotalBadge').textContent = `총 ${filtered.length}명 (전체 ${students.length}명)`;
+      
+      document.getElementById('studentsTableBody').innerHTML = filtered.map(st => {
+        const isChecked = selectedStudentsForDelete.has(st.id);
+        return `
+        <tr class="hover:bg-slate-50">
+          <td class="py-3 px-4 text-center"><input type="checkbox" class="student-select-cb w-4 h-4 rounded text-blue-600 cursor-pointer" value="${st.id}" ${isChecked ? 'checked' : ''} onclick="toggleStudentForDelete('${st.id}')"></td>
+          <td class="py-3 px-4">${st.grade}학년</td>
+          <td class="py-3 px-4">${st.classNum}반</td>
+          <td class="py-3 px-4">${st.number}번</td>
+          <td class="py-3 px-4 font-bold">${st.name}</td>
+          <td class="py-3 px-4 text-slate-500">${st.phone || ''}</td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="openStudentModal('edit', '${st.id}')" class="text-indigo-500 mx-1"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button onclick="deleteStudent('${st.id}')" class="text-rose-500 mx-1"><i class="fa-solid fa-trash-can"></i></button>
+          </td>
+        </tr>
+      `}).join('');
+      
+      updateStudentDeleteUI();
+    }
+
+    function toggleStudentForDelete(id) {
+      if(selectedStudentsForDelete.has(id)) selectedStudentsForDelete.delete(id);
+      else selectedStudentsForDelete.add(id);
+      updateStudentDeleteUI();
+    }
+
+    function toggleSelectAllStudents(cb) {
+      const checkboxes = document.querySelectorAll('.student-select-cb');
+      checkboxes.forEach(c => {
+        c.checked = cb.checked;
+        if(cb.checked) selectedStudentsForDelete.add(c.value);
+        else selectedStudentsForDelete.delete(c.value);
+      });
+      updateStudentDeleteUI();
+    }
+
+    function updateStudentDeleteUI() {
+      const btn = document.getElementById('deleteSelectedStudentsBtn');
+      const countSpan = document.getElementById('selectedStudentCount');
+      const count = selectedStudentsForDelete.size;
+      
+      if(count > 0) {
+        btn.classList.remove('hidden');
+        countSpan.textContent = count;
+      } else {
+        btn.classList.add('hidden');
+        countSpan.textContent = '0';
+      }
+      
+      const cbAll = document.getElementById('selectAllStudentsCb');
+      const displayedCheckboxes = document.querySelectorAll('.student-select-cb');
+      if(displayedCheckboxes.length > 0) {
+         const allChecked = Array.from(displayedCheckboxes).every(c => c.checked);
+         cbAll.checked = allChecked;
+      } else {
+         cbAll.checked = false;
+      }
+    }
+
+    function deleteSelectedStudents() {
+      const count = selectedStudentsForDelete.size;
+      if(count === 0) return;
+      if(!confirm(`선택한 ${count}명의 학생을 일괄 삭제하시겠습니까?\n해당 학생들의 기존 상벌점 내역도 모두 함께 삭제됩니다.`)) return;
+
+      let students = getStoredData(STORAGE_KEYS.STUDENTS);
+      let records = getStoredData(STORAGE_KEYS.RECORDS);
+
+      students = students.filter(s => !selectedStudentsForDelete.has(s.id));
+      records = records.filter(r => !selectedStudentsForDelete.has(r.studentId));
+
+      setStoredData(STORAGE_KEYS.STUDENTS, students);
+      setStoredData(STORAGE_KEYS.RECORDS, records);
+      
+      selectedStudentsForDelete.clear();
+      document.getElementById('selectAllStudentsCb').checked = false;
+      refreshAllDataViews();
+      alert(`${count}명의 학생이 성공적으로 삭제되었습니다.`);
+    }
+
+    function handleStudentCSVUpload() {
+      const fileInput = document.getElementById('studentCsvFileInput');
+      const file = fileInput.files[0];
+      if (!file) { alert('업로드할 파일을 선택해주세요.'); return; }
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'xlsx' || ext === 'xls') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const csvText = XLSX.utils.sheet_to_csv(worksheet);
+          processStudentCSVLines(csvText);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          let text = e.target.result;
+          if (text.includes('')) {
+            const r2 = new FileReader(); r2.onload = function(e2) { processStudentCSVLines(e2.target.result); }; r2.readAsText(file, 'UTF-8'); return;
+          }
+          processStudentCSVLines(text);
+        };
+        try { reader.readAsText(file, 'EUC-KR'); } catch (err) { reader.readAsText(file, 'UTF-8'); }
+      }
+    }
+    
+    function processStudentCSVLines(text) {
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length < 2) return;
+      const header = lines[0].replace(/\s+/g, '').split(',');
+      const gradeIdx = header.findIndex(h => h.includes('학년'));
+      const classIdx = header.findIndex(h => h.includes('반'));
+      const numIdx = header.findIndex(h => h.includes('번호'));
+      const nameIdx = header.findIndex(h => h.includes('이름') || h.includes('성명'));
+      const phoneIdx = header.findIndex(h => h.includes('보호자') || h.includes('휴대폰') || h.includes('연락처'));
+      if (gradeIdx === -1 || classIdx === -1 || numIdx === -1 || nameIdx === -1) { alert('파일 헤더 형식이 올바르지 않습니다. (학년, 반, 번호, 이름 필수)'); return; }
+
+      const existing = getStoredData(STORAGE_KEYS.STUDENTS);
+      let add = 0, upd = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        if (row.length < 4) continue;
+        const g = parseInt(row[gradeIdx], 10), c = parseInt(row[classIdx], 10), n = parseInt(row[numIdx], 10), name = row[nameIdx], phone = phoneIdx !== -1 && row[phoneIdx] ? row[phoneIdx] : '';
+        if (isNaN(g) || isNaN(c) || isNaN(n) || !name) continue;
+        const matchIdx = existing.findIndex(s => s.grade === g && s.classNum === c && s.number === n);
+        if (matchIdx !== -1) { existing[matchIdx].name = name; existing[matchIdx].phone = phone; upd++; }
+        else { existing.push({ id: `${g}-${c}-${n}-${Date.now().toString(36)}`, grade: g, classNum: c, number: n, name, phone }); add++; }
+      }
+      setStoredData(STORAGE_KEYS.STUDENTS, existing); document.getElementById('studentCsvFileInput').value = '';
+      alert(`명단 업로드 완료! (신규: ${add}명, 갱신: ${upd}명)`); refreshAllDataViews();
+    }
+    
+    function openStudentModal(mode, id = null) {
+      document.getElementById('studentModalForm').reset();
+      if(mode === 'edit') {
+        const st = getStoredData(STORAGE_KEYS.STUDENTS).find(s => s.id === id);
+        document.getElementById('studentModalId').value = st.id; document.getElementById('modalStudentGrade').value = st.grade; document.getElementById('modalStudentClass').value = st.classNum; document.getElementById('modalStudentNumber').value = st.number; document.getElementById('modalStudentName').value = st.name; document.getElementById('modalStudentPhone').value = st.phone || '';
+      } else { document.getElementById('studentModalId').value = ''; }
+      document.getElementById('studentModal').classList.remove('hidden');
+    }
+    function closeStudentModal() { document.getElementById('studentModal').classList.add('hidden'); }
+    function handleSaveStudent(e) {
+      e.preventDefault();
+      const stId = document.getElementById('studentModalId').value, grade = parseInt(document.getElementById('modalStudentGrade').value), classNum = parseInt(document.getElementById('modalStudentClass').value), number = parseInt(document.getElementById('modalStudentNumber').value), name = document.getElementById('modalStudentName').value, phone = document.getElementById('modalStudentPhone').value;
+      const students = getStoredData(STORAGE_KEYS.STUDENTS);
+      if(stId) { const idx = students.findIndex(s => s.id === stId); students[idx] = { id: stId, grade, classNum, number, name, phone }; }
+      else { students.push({ id: `${grade}-${classNum}-${number}-${Date.now()}`, grade, classNum, number, name, phone }); }
+      setStoredData(STORAGE_KEYS.STUDENTS, students); closeStudentModal();
+    }
+    
+    function deleteStudent(id) { 
+      if(confirm('학생을 삭제하시겠습니까? (상벌점 내역도 함께 삭제됩니다)')) {
+        let students = getStoredData(STORAGE_KEYS.STUDENTS);
+        let records = getStoredData(STORAGE_KEYS.RECORDS);
+        setStoredData(STORAGE_KEYS.STUDENTS, students.filter(s => s.id !== id)); 
+        setStoredData(STORAGE_KEYS.RECORDS, records.filter(r => r.studentId !== id));
+        refreshAllDataViews();
+      }
+    }
+
+    /* TAB 5: 기준표 관리 (엑셀/CSV 및 권한제어) */
+    let criteriaFilterType = 'all';
+    function setCriteriaTab(type) { criteriaFilterType = type; renderCriteriaTable(); }
+    
+    function renderCriteriaTable() {
+      const criteria = getStoredData(STORAGE_KEYS.CRITERIA).filter(c => criteriaFilterType === 'all' || c.type === criteriaFilterType);
+      const isAdmin = currentUser && currentUser.role === 'admin';
+      
+      document.getElementById('criteriaTableHead').innerHTML = `<tr><th class="py-3 px-4 text-center">구분</th><th class="py-3 px-4">영역</th><th class="py-3 px-4 text-center">번호</th><th class="py-3 px-4">규정 내용</th><th class="py-3 px-4 text-center">배점</th>${isAdmin ? '<th class="py-3 px-4 text-center">관리</th>' : ''}</tr>`;
+      
+      document.getElementById('criteriaTableBody').innerHTML = criteria.map(c => `
+        <tr class="hover:bg-slate-50"><td class="py-3 px-4 text-center">${c.type==='merit'?'<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">상점</span>':'<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">벌점</span>'}</td><td class="py-3 px-4 font-bold">${c.category}</td><td class="py-3 px-4 text-center">${c.code}</td><td class="py-3 px-4">${c.desc}</td><td class="py-3 px-4 text-center font-bold ${c.type==='merit'?'text-emerald-600':'text-rose-600'}">${c.scoreRange}점</td>
+        ${isAdmin ? `<td class="py-3 px-4 text-center"><button onclick="openCriterionModal('edit', '${c.id}')" class="text-indigo-500 mx-1"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteCriterion('${c.id}')" class="text-rose-500 mx-1"><i class="fa-solid fa-trash-can"></i></button></td>` : ''}</tr>
+      `).join('');
+    }
+
+    function handleCriteriaCSVUpload() {
+      const type = document.getElementById('criteriaUploadType').value;
+      const fileInput = document.getElementById('criteriaCsvFileInput');
+      const file = fileInput.files[0];
+      if (!file) { alert('적용할 파일을 선택해주세요.'); return; }
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'xlsx' || ext === 'xls') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const csvText = XLSX.utils.sheet_to_csv(worksheet);
+          parseCriteriaCSV(csvText, type);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          let text = e.target.result;
+          if (text.includes('')) { const r2 = new FileReader(); r2.onload = function(e2) { parseCriteriaCSV(e2.target.result, type); }; r2.readAsText(file, 'UTF-8'); return; }
+          parseCriteriaCSV(text, type);
+        };
+        try { reader.readAsText(file, 'EUC-KR'); } catch (e) { reader.readAsText(file, 'UTF-8'); }
+      }
+    }
+    
+    function parseCriteriaCSV(text, uploadType) {
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length < 2) { alert('파일에 유효한 내용이 없습니다.'); return; }
+      let curCategory = '일반'; const newItems = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line || line.startsWith(',,,') || line.replace(/,/g, '').trim() === '') continue;
+        const parts = line.split(',');
+        let cat = parts[0] ? parts[0].trim().replace(/^"|"$/g, '') : '';
+        let code = parseInt(parts[1], 10);
+        let desc = parts[2] ? parts[2].trim().replace(/^"|"$/g, '') : '';
+        let score = parts[3] ? parts[3].trim().replace(/^"|"$/g, '') : '2';
+        if (cat) curCategory = cat;
+        if (!desc && parts.length > 3) { desc = parts.slice(2, parts.length - 1).join(',').trim().replace(/^"|"$/g, ''); score = parts[parts.length - 1].trim(); }
+        if (desc) { newItems.push({ id: `${uploadType}-${Date.now().toString(36)}-${i}`, type: uploadType, category: curCategory, code: code || i, desc: desc, scoreRange: score, defaultScore: parseInt(score.split('~')[0], 10) || 2 }); }
+      }
+      if (newItems.length === 0) { alert('추출된 항목이 없습니다.'); return; }
+      let criteria = getStoredData(STORAGE_KEYS.CRITERIA).filter(c => c.type !== uploadType).concat(newItems);
+      setStoredData(STORAGE_KEYS.CRITERIA, criteria); document.getElementById('criteriaCsvFileInput').value = '';
+      alert(`${uploadType === 'merit' ? '상점' : '벌점'} 기준표 업데이트 완료!`); refreshAllDataViews();
+    }
+    
+    function openCriterionModal(mode, id = null) {
+      document.getElementById('criterionModalForm').reset();
+      if(mode === 'edit') {
+        const c = getStoredData(STORAGE_KEYS.CRITERIA).find(x => x.id === id);
+        document.getElementById('criterionModalId').value = c.id; document.getElementById('modalCritType').value = c.type; document.getElementById('modalCritScore').value = c.scoreRange; document.getElementById('modalCritCategory').value = c.category; document.getElementById('modalCritDesc').value = c.desc;
+      } else { document.getElementById('criterionModalId').value = ''; }
+      document.getElementById('criterionModal').classList.remove('hidden');
+    }
+    function closeCriterionModal() { document.getElementById('criterionModal').classList.add('hidden'); }
+    function handleSaveCriterion(e) {
+      e.preventDefault();
+      const id = document.getElementById('criterionModalId').value, type = document.getElementById('modalCritType').value, scoreRange = document.getElementById('modalCritScore').value, category = document.getElementById('modalCritCategory').value, desc = document.getElementById('modalCritDesc').value;
+      const criteria = getStoredData(STORAGE_KEYS.CRITERIA);
+      if(id) { const idx = criteria.findIndex(c => c.id === id); criteria[idx] = { id, type, category, code: criteria[idx].code, desc, scoreRange, defaultScore: parseInt(scoreRange, 10)||2 }; }
+      else { const maxCode = criteria.filter(c => c.type === type).reduce((m, c) => Math.max(m, c.code||0), 0); criteria.push({ id: `${type}-${Date.now()}`, type, category, code: maxCode+1, desc, scoreRange, defaultScore: parseInt(scoreRange, 10)||2 }); }
+      setStoredData(STORAGE_KEYS.CRITERIA, criteria); closeCriterionModal();
+    }
+    function deleteCriterion(id) { if(confirm('기준을 삭제하시겠습니까?')) setStoredData(STORAGE_KEYS.CRITERIA, getStoredData(STORAGE_KEYS.CRITERIA).filter(c => c.id !== id)); }
+
+    /* TAB 6: 교사 관리 */
+    function renderTeachersApprovalTable() {
+      if(!currentUser || currentUser.role !== 'admin') return;
+      const teachers = getStoredData(STORAGE_KEYS.TEACHERS), pending = teachers.filter(t => t.status === 'pending'), approved = teachers.filter(t => t.status === 'approved');
+      if(pending.length > 0) { document.getElementById('pendingBadge').textContent = pending.length; document.getElementById('pendingBadge').classList.remove('hidden'); } else document.getElementById('pendingBadge').classList.add('hidden');
+      document.getElementById('pendingTeachersTableBody').innerHTML = pending.map(t => `<tr><td class="py-3 px-4 font-bold">${t.name}</td><td class="py-3 px-4">${t.id}</td><td class="py-3 px-4 text-center"><button onclick="approveTeacher('${t.id}')" class="px-2 py-1 bg-emerald-600 text-white rounded text-xs">승인</button> <button onclick="rejectTeacher('${t.id}')" class="px-2 py-1 bg-rose-500 text-white rounded text-xs">반려</button></td></tr>`).join('');
+      document.getElementById('approvedTeachersTableBody').innerHTML = approved.map(t => `<tr><td class="py-3 px-4 font-bold">${t.name}</td><td class="py-3 px-4">${t.id}</td><td class="py-3 px-4 text-center">${t.id === 'dydwls0831' ? '-' : `<button onclick="rejectTeacher('${t.id}')" class="text-rose-500 text-xs">삭제</button>`}</td></tr>`).join('');
+    }
+    function approveTeacher(id) { let teachers = getStoredData(STORAGE_KEYS.TEACHERS); const t = teachers.find(x => x.id === id); if(t) { t.status = 'approved'; setStoredData(STORAGE_KEYS.TEACHERS, teachers); } }
+    function rejectTeacher(id) { if(id === 'dydwls0831') return; let teachers = getStoredData(STORAGE_KEYS.TEACHERS); setStoredData(STORAGE_KEYS.TEACHERS, teachers.filter(x => x.id !== id)); }
+
+    /* 상세 내역 모달 */
+    function openStudentDetailModal(stId) {
+      const student = getStoredData(STORAGE_KEYS.STUDENTS).find(s => s.id === stId), records = getStoredData(STORAGE_KEYS.RECORDS).filter(r => r.studentId === stId);
+      document.getElementById('detailModalStudentName').textContent = student.name;
+      let merit = 0, demerit = 0;
+      document.getElementById('detailModalHistoryBody').innerHTML = records.map(r => {
+        if(r.score > 0) merit += r.score; else demerit += r.score;
+        return `<tr><td class="p-2">${r.date}</td><td class="p-2">${r.description}</td><td class="p-2 font-bold">${r.score}점</td></tr>`;
+      }).join('');
+      document.getElementById('detailModalMerit').textContent = `+${merit}점`; document.getElementById('detailModalDemerit').textContent = `${demerit}점`; document.getElementById('detailModalNet').textContent = `${merit + demerit}점`;
+      document.getElementById('studentDetailModal').classList.remove('hidden');
+    }
+    function closeStudentDetailModal() { document.getElementById('studentDetailModal').classList.add('hidden'); }
+
+    window.addEventListener('DOMContentLoaded', setupRealtimeListener);
+  </script>
+</body>
+</html>
