@@ -451,7 +451,12 @@
       refreshAllDataViews();
     }
     function refreshAllDataViews() {
-      initGrantTabOptions(); renderRecordsTable(); renderWarningView(); renderStudentsTable(); renderCriteriaTable(); renderTeachersApprovalTable();
+      initGrantTabOptions(); 
+      onFilterGradeChange(); // 추가: 화면 새로고침 시 반 드롭다운 목록 세팅
+      renderWarningView(); 
+      renderStudentsTable(); 
+      renderCriteriaTable(); 
+      renderTeachersApprovalTable();
     }
 
     /* 상벌점 부여 TAB 1 */
@@ -701,32 +706,97 @@
     }
 
     /* TAB 2, 3: 통계 & 과벌점 */
+    function onFilterGradeChange() {
+      const grade = document.getElementById('filterGrade').value;
+      const classSelect = document.getElementById('filterClass');
+      
+      // 현재 선택된 반 값을 기억해 둠
+      const currentSelectedClass = classSelect.value;
+      
+      // 초기화
+      classSelect.innerHTML = '<option value="all">전체 반</option>';
+
+      // 학년이 전체일 경우 전체 학년의 반들을 종합해서 보여줌
+      let students = getStoredData(STORAGE_KEYS.STUDENTS);
+      if (grade !== 'all') {
+        students = students.filter(s => String(s.grade) === grade);
+      }
+      
+      const classes = [...new Set(students.map(s => s.classNum))].sort((a, b) => a - b);
+      classes.forEach(c => {
+        classSelect.innerHTML += `<option value="${c}">${c}반</option>`;
+      });
+
+      // 기존에 선택했던 반이 새로 구성된 목록에 있다면 값 유지
+      if(classes.includes(Number(currentSelectedClass))) {
+        classSelect.value = currentSelectedClass;
+      }
+
+      // 변경 후 테이블 다시 렌더링
+      renderRecordsTable();
+    }
+
     function renderRecordsTable() {
       let totalMerit = 0, totalDemerit = 0;
       const isAdmin = currentUser && currentUser.role === 'admin';
-      
-      document.getElementById('recordsTableBody').innerHTML = getStoredData(STORAGE_KEYS.RECORDS).map(r => {
-        if(r.score > 0) totalMerit += r.score; else totalDemerit += r.score;
-        const canDelete = isAdmin || r.teacherId === currentUser.id;
+
+      // 1. 필터 값 가져오기
+      const sDate = document.getElementById('filterStartDate').value;
+      const eDate = document.getElementById('filterEndDate').value;
+      const fGrade = document.getElementById('filterGrade').value;
+      const fClass = document.getElementById('filterClass').value;
+      const fType = document.getElementById('filterType').value;
+      const fKeyword = (document.getElementById('filterKeyword').value || '').trim().toLowerCase();
+
+      // 2. 전체 내역에서 조건에 맞는 데이터만 필터링
+      let records = getStoredData(STORAGE_KEYS.RECORDS);
+      let filteredRecords = records.filter(r => {
+        if (sDate && r.date < sDate) return false;
+        if (eDate && r.date > eDate) return false;
+        if (fGrade !== 'all' && String(r.grade) !== fGrade) return false;
+        if (fClass !== 'all' && String(r.classNum) !== fClass) return false;
+        if (fType !== 'all' && r.type !== fType) return false;
         
-        return `<tr class="hover:bg-slate-50">
-          <td class="py-3 px-4">${r.date}</td><td class="py-3 px-4 font-bold">${r.grade}-${r.classNum}-${r.number} ${r.studentName}</td>
-          <td class="py-3 px-4">${r.type==='merit'?'<span class="text-emerald-600 font-bold">상점</span>':'<span class="text-rose-600 font-bold">벌점</span>'}</td>
-          <td class="py-3 px-4 truncate max-w-xs" title="${r.description}">${r.description}</td>
-          <td class="py-3 px-4">${r.details}</td>
-          <td class="py-3 px-4 font-bold ${r.score>0?'text-emerald-600':'text-rose-600'}">${r.score>0?'+':''}${r.score}점</td>
-          <td class="py-3 px-4">${r.teacherName}</td>
-          <td class="py-3 px-4 text-center">
-            ${canDelete ? `<button onclick="deleteRecord('${r.id}')" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-trash-can"></i></button>` : `<span class="text-slate-300" title="삭제 권한 없음"><i class="fa-solid fa-ban"></i></span>`}
-          </td>
-        </tr>`;
-      }).join('');
+        // (r.studentName || '')을 추가하여 예전 기록 중 이름이 비어있어 발생하는 크래시(렌더링 먹통 현상)를 방지
+        if (fKeyword && !(r.studentName || '').toLowerCase().includes(fKeyword)) return false; 
+        return true;
+      });
+
+      // 3. 화면(테이블) 렌더링
+      const tbody = document.getElementById('recordsTableBody');
+      const emptyMsg = document.getElementById('recordsEmptyMsg');
+
+      if (filteredRecords.length === 0) {
+        tbody.innerHTML = '';
+        emptyMsg.classList.remove('hidden');
+      } else {
+        emptyMsg.classList.add('hidden');
+        tbody.innerHTML = filteredRecords.map(r => {
+          if (r.score > 0) totalMerit += r.score; else totalDemerit += r.score;
+          const canDelete = isAdmin || r.teacherId === currentUser.id;
+          
+          return `<tr class="hover:bg-slate-50">
+            <td class="py-3 px-4">${r.date}</td><td class="py-3 px-4 font-bold">${r.grade}-${r.classNum}-${r.number} ${r.studentName || '-'}</td>
+            <td class="py-3 px-4">${r.type==='merit'?'<span class="text-emerald-600 font-bold">상점</span>':'<span class="text-rose-600 font-bold">벌점</span>'}</td>
+            <td class="py-3 px-4 truncate max-w-xs" title="${r.description || ''}">${r.description || '-'}</td>
+            <td class="py-3 px-4">${r.details || '-'}</td>
+            <td class="py-3 px-4 font-bold ${r.score>0?'text-emerald-600':'text-rose-600'}">${r.score>0?'+':''}${r.score}점</td>
+            <td class="py-3 px-4">${r.teacherName || '-'}</td>
+            <td class="py-3 px-4 text-center">
+              ${canDelete ? `<button onclick="deleteRecord('${r.id}')" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-trash-can"></i></button>` : `<span class="text-slate-300" title="삭제 권한 없음"><i class="fa-solid fa-ban"></i></span>`}
+            </td>
+          </tr>`;
+        }).join('');
+      }
+
+      // 4. 상단 통계 수치 업데이트 (필터링된 결과 기준)
       const net = totalMerit + totalDemerit;
-      document.getElementById('statTotalCount').textContent = `${getStoredData(STORAGE_KEYS.RECORDS).length}건`;
+      document.getElementById('statTotalCount').textContent = `${filteredRecords.length}건`;
       document.getElementById('statTotalMerit').textContent = `+${totalMerit}점`;
       document.getElementById('statTotalDemerit').textContent = `${totalDemerit}점`;
-      document.getElementById('statNetScore').textContent = `${net>0?'+':''}${net}점`;
+      document.getElementById('statNetScore').textContent = `${net > 0 ? '+' : ''}${net}점`;
     }
+    
     function deleteRecord(id) { if(confirm('삭제하시겠습니까?')) setStoredData(STORAGE_KEYS.RECORDS, getStoredData(STORAGE_KEYS.RECORDS).filter(r => r.id !== id)); }
 
     let currentWarningTier = 1;
